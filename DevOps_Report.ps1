@@ -133,7 +133,7 @@ foreach($area in $areas)
 
         foreach($pocItem in ($pocItems | Select-Object -Skip 1))
         {
-            $sb.AppendLine(("<tr><td>{0}</td><td>{1}</td><td class='center'>{2}</td></tr>" -f $($pocItem.'System.Title'),$($pocItems[0].'System.Description'),$pocItem.'System.State')) | Out-Null
+            $sb.AppendLine(("<tr><td>{0}</td><td>{1}</td><td class='center'>{2}</td></tr>" -f $($pocItem.'System.Title'),$($pocItem.'System.Description'),$pocItem.'System.State')) | Out-Null
         }
     }
 
