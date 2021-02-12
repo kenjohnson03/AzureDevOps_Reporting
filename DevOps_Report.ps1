@@ -46,7 +46,7 @@ $results = Invoke-RestMethod -Method Get -uri $("https://dev.azure.com/_apis/res
 $rmUrl = $results.locationUrl
 
 $wiql = @"
-Select [System.AreaPath], [System.IterationPath], [System.Title], [Microsoft.VSTS.Scheduling.TargetDate], [System.Id], [System.WorkItemType], [System.AssignedTo], [System.State], [System.Tags], [Microsoft.VSTS.Common.ClosedDate] 
+select [System.AreaPath], [System.IterationPath], [System.Title], [Microsoft.VSTS.Scheduling.TargetDate], [System.Id], [System.WorkItemType], [System.AssignedTo], [System.State], [System.Tags], [Microsoft.VSTS.Common.ClosedDate] 
 from WorkItems 
 where ([System.WorkItemType] = 'User Story' and ([Microsoft.VSTS.Common.ClosedDate] >= "$($startDate.ToString("MM/dd/yyyy 00:00:00Z"))" and [Microsoft.VSTS.Common.ClosedDate] <= "$($endDate.ToString("MM/dd/yyyy 00:00:00Z"))")) 
     or [System.State] = 'Active' 
@@ -60,7 +60,7 @@ where ([System.WorkItemType] = 'User Story' and ([Microsoft.VSTS.Common.ClosedDa
 
 $body = @{ query = "$wiql" } | ConvertTo-Json
 
-$workItems = Invoke-RestMethod -Method Post -uri $('{0}{1}/_apis/wit/wiql?api-version=5.0' -f $rmURL,$project) -ContentType "application/json" -Headers $header -Body $body | Select-Object -ExpandProperty workItems | #DevSkim: ignore DS104456 
+$workItems = Invoke-RestMethod -Method Post -uri $('{0}{1}/_apis/wit/wiql?api-version=5.0' -f $rmURL,$project.Replace(" ","%20")) -ContentType "application/json" -Headers $header -Body $body | Select-Object -ExpandProperty workItems | #DevSkim: ignore DS104456 
     ForEach-Object { Invoke-RestMethod -Method Get -uri $_.Url -ContentType "application/json" -Headers $header } | Select-Object -ExpandProperty fields | #DevSkim: ignore DS104456 
     Select-Object *,@{l="ScheduledDate";e={[datetime]::Parse($_.'System.IterationPath'.Split('\')[-1])}},
                     @{l="IterationPath";e={$_.'System.IterationPath'.Split('\')[-1]}},
