@@ -21,7 +21,7 @@ $orgURL = "https://dev.azure.com/{0}/" -f $OrganizationName
 
 $credentialName = $("git:https://{0}@dev.azure.com/{0}" -f $OrganizationName)
 
-$securePassword = Get-StoredCredential -Target $credentialName | Select-Object-ExpandProperty password 
+$securePassword = Get-StoredCredential -Target $credentialName | Select-Object -ExpandProperty password 
 
 if($null -eq $securePassword)
 {
@@ -29,7 +29,7 @@ if($null -eq $securePassword)
     Start-Process $("$($orgURL)_usersSettings/tokens")
     $pat = Read-Host "Personal Access Token"    
     New-StoredCredential -Target $credentialName -UserName $OrganizationName -Password $pat
-    $securePassword = Get-StoredCredential -Target $credentialName | Select-Object-ExpandProperty password 
+    $securePassword = Get-StoredCredential -Target $credentialName | Select-Object -ExpandProperty password 
 }
 
 $PersonalAT = ([string][System.Net.NetworkCredential]::new("AzureDevOpsPAT",$securePassword).Password).Trim()
@@ -46,7 +46,7 @@ $results = Invoke-RestMethod -Method Get -uri $("https://dev.azure.com/_apis/res
 $rmUrl = $results.locationUrl
 
 $wiql = @"
-Select-Object[System.AreaPath], [System.IterationPath], [System.Title], [Microsoft.VSTS.Scheduling.TargetDate], [System.Id], [System.WorkItemType], [System.AssignedTo], [System.State], [System.Tags], [Microsoft.VSTS.Common.ClosedDate] 
+Select-Object [System.AreaPath], [System.IterationPath], [System.Title], [Microsoft.VSTS.Scheduling.TargetDate], [System.Id], [System.WorkItemType], [System.AssignedTo], [System.State], [System.Tags], [Microsoft.VSTS.Common.ClosedDate] 
 from WorkItems 
 where ([System.WorkItemType] = 'User Story' and ([Microsoft.VSTS.Common.ClosedDate] >= "$($startDate.ToString("MM/dd/yyyy 00:00:00Z"))" and [Microsoft.VSTS.Common.ClosedDate] <= "$($endDate.ToString("MM/dd/yyyy 00:00:00Z"))")) 
     or [System.State] = 'Active' 
@@ -60,8 +60,8 @@ where ([System.WorkItemType] = 'User Story' and ([Microsoft.VSTS.Common.ClosedDa
 
 $body = @{ query = "$wiql" } | ConvertTo-Json
 
-$workItems = Invoke-RestMethod -Method Post -uri $('{0}{1}/_apis/wit/wiql?api-version=5.0' -f $rmURL,$project.Replace(" ","%20")) -ContentType "application/json" -Headers $header -Body $body | Select-Object-ExpandProperty workItems | #DevSkim: ignore DS104456 
-    ForEach-Object { Invoke-RestMethod -Method Get -uri $_.Url -ContentType "application/json" -Headers $header } | Select-Object-ExpandProperty fields | #DevSkim: ignore DS104456 
+$workItems = Invoke-RestMethod -Method Post -uri $('{0}{1}/_apis/wit/wiql?api-version=5.0' -f $rmURL,$project.Replace(" ","%20")) -ContentType "application/json" -Headers $header -Body $body | Select-Object -ExpandProperty workItems | #DevSkim: ignore DS104456 
+    ForEach-Object { Invoke-RestMethod -Method Get -uri $_.Url -ContentType "application/json" -Headers $header } | Select-Object -ExpandProperty fields | #DevSkim: ignore DS104456 
     Select-Object *,@{l="ScheduledDate";e={[datetime]::Parse($_.'System.IterationPath'.Split('\')[-1])}},
                     @{l="IterationPath";e={$_.'System.IterationPath'.Split('\')[-1]}},
                     @{l="AssignedTo";e={$_.'System.AssignedTo'.displayName}} 
@@ -137,13 +137,13 @@ foreach($area in $areas)
         }
     }
 
-    $milestones = $workItems | Where-Object { $_.'System.AreaPath' -like "*$area*" -and $_.'System.WorkItemType' -eq "Feature" } | Select-Object"System.Title",@{l="Month";e={Get-Date -Date ($_."Microsoft.VSTS.Common.ClosedDate") -Format "MMMM yyyy"}},@{l="Date";e={Get-Date -Date ($_."Microsoft.VSTS.Common.ClosedDate")}} | Sort-Object Date -Descending
+    $milestones = $workItems | Where-Object { $_.'System.AreaPath' -like "*$area*" -and $_.'System.WorkItemType' -eq "Feature" } | Select-Object "System.Title",@{l="Month";e={Get-Date -Date ($_."Microsoft.VSTS.Common.ClosedDate") -Format "MMMM yyyy"}},@{l="Date";e={Get-Date -Date ($_."Microsoft.VSTS.Common.ClosedDate")}} | Sort-Object Date -Descending
 
     if($null -ne $milestones)
     {
         $sb.AppendLine("<tr><th style='border-left:1px solid #008AC8;border-right:1px solid #008AC8;' colspan='4'>Milestones</th></tr>" -f $area) | Out-Null
         
-        $months = $milestones | Select-Object-ExpandProperty Month -Unique
+        $months = $milestones | Select-Object -ExpandProperty Month -Unique
 
         foreach($month in $months)
         {
