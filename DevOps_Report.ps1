@@ -21,7 +21,7 @@ $orgURL = "https://dev.azure.com/{0}/" -f $OrganizationName
 
 $credentialName = $("git:https://{0}@dev.azure.com/{0}" -f $OrganizationName)
 
-$securePassword = Get-StoredCredential -Target $credentialName | Select -ExpandProperty password 
+$securePassword = Get-StoredCredential -Target $credentialName | Select-Object -ExpandProperty password 
 
 if($null -eq $securePassword)
 {
@@ -29,7 +29,7 @@ if($null -eq $securePassword)
     Start-Process $("$($orgURL)_usersSettings/tokens")
     $pat = Read-Host "Personal Access Token"    
     New-StoredCredential -Target $credentialName -UserName $OrganizationName -Password $pat
-    $securePassword = Get-StoredCredential -Target $credentialName | Select -ExpandProperty password 
+    $securePassword = Get-StoredCredential -Target $credentialName | Select-Object -ExpandProperty password 
 }
 
 $PersonalAT = ([string][System.Net.NetworkCredential]::new("AzureDevOpsPAT",$securePassword).Password).Trim()
@@ -60,8 +60,8 @@ where ([System.WorkItemType] = 'User Story' and ([Microsoft.VSTS.Common.ClosedDa
 
 $body = @{ query = "$wiql" } | ConvertTo-Json
 
-$workItems = Invoke-RestMethod -Method Post -uri $('{0}{1}/_apis/wit/wiql?api-version=5.0' -f $rmURL,$project.Replace(" ","%20")) -ContentType "application/json" -Headers $header -Body $body | Select -ExpandProperty workItems | #DevSkim: ignore DS104456 
-    ForEach-Object { Invoke-RestMethod -Method Get -uri $_.Url -ContentType "application/json" -Headers $header } | Select -ExpandProperty fields | #DevSkim: ignore DS104456 
+$workItems = Invoke-RestMethod -Method Post -uri $('{0}{1}/_apis/wit/wiql?api-version=5.0' -f $rmURL,$project.Replace(" ","%20")) -ContentType "application/json" -Headers $header -Body $body | Select-Object -ExpandProperty workItems | #DevSkim: ignore DS104456 
+    ForEach-Object { Invoke-RestMethod -Method Get -uri $_.Url -ContentType "application/json" -Headers $header } | Select-Object -ExpandProperty fields | #DevSkim: ignore DS104456 
     Select-Object *,@{l="ScheduledDate";e={[datetime]::Parse($_.'System.IterationPath'.Split('\')[-1])}},
                     @{l="IterationPath";e={$_.'System.IterationPath'.Split('\')[-1]}},
                     @{l="AssignedTo";e={$_.'System.AssignedTo'.displayName}} 
@@ -112,24 +112,27 @@ foreach($area in $areas)
 
     $sb.AppendLine("<tr><th style='font-size:20px;border-left:1px solid #008AC8;border-right:1px solid #008AC8;border-bottom:1px solid white;' colspan='4'><b>{0}</b></th></tr>" -f $area) | Out-Null
     $sb.AppendLine("<tr><th style='border-left:1px solid #008AC8;'>Resource Name</th><th>Task</th><th>Description</th><th style='border-right:1px solid #008AC8;'>State</th></tr>") | Out-Null
-     
 
     foreach($poc in $pocs)
     {
         $pocItems = $workItems | 
             Where-Object { $_.AssignedTo -eq $poc -and $_.'System.AreaPath' -like "*$area*" -and $_.'System.WorkItemType' -eq "User Story"} | 
             Sort-Object @{expression={$stateOrder.IndexOf($_.'System.State')}; },'Microsoft.VSTS.Common.StackRank'
-             
-        if($Avatars)
-        {
-            $sb.AppendLine(("<tr><td rowspan='{4}'><img src='{5}' alt='{0} Avatar' style='border-radius: 50;'/><br/>{0}</td><td>{1}</td><td>{2}</td><td class='center'>{3}</td></tr>" -f $poc,$($pocItems[0].'System.Title'),$($pocItems[0].'System.Description'),$pocItems[0].'System.State',$pocItems.Count,$($pocItems[0].'System.AssignedTo'.imageUrl))) | Out-Null
-        }
-        else 
-        {
-            $sb.AppendLine(("<tr><td rowspan='{4}'>{0}</td><td>{1}</td><td>{2}</td><td class='center'>{3}</td></tr>" -f $poc,$($pocItems[0].'System.Title'),$($pocItems[0].'System.Description'),$pocItems[0].'System.State',$pocItems.Count)) | Out-Null    
-        }
-        
 
+        # Some pocItems could be null and cause errors, need to filter out.
+        if ($pocItems.Count -eq 0){
+            Write-Verbose "Skipping"
+        }
+        else {
+            if($Avatars)
+            {
+                $sb.AppendLine(("<tr><td rowspan='{4}'><img src='{5}' alt='{0} Avatar' style='border-radius: 50;'/><br/>{0}</td><td>{1}</td><td>{2}</td><td class='center'>{3}</td></tr>" -f $poc,$($pocItems[0].'System.Title'),$($pocItems[0].'System.Description'),$pocItems[0].'System.State',$pocItems.Count,$($pocItems[0].'System.AssignedTo'.imageUrl))) | Out-Null
+            }
+            else 
+            {
+                $sb.AppendLine(("<tr><td rowspan='{4}'>{0}</td><td>{1}</td><td>{2}</td><td class='center'>{3}</td></tr>" -f $poc,$($pocItems[0].'System.Title'),$($pocItems[0].'System.Description'),$pocItems[0].'System.State',$pocItems.Count)) | Out-Null    
+            }       
+        }
 
         foreach($pocItem in ($pocItems | Select-Object -Skip 1))
         {
@@ -137,13 +140,13 @@ foreach($area in $areas)
         }
     }
 
-    $milestones = $workItems | Where-Object { $_.'System.AreaPath' -like "*$area*" -and $_.'System.WorkItemType' -eq "Feature" } | Select "System.Title",@{l="Month";e={Get-Date -Date ($_."Microsoft.VSTS.Common.ClosedDate") -Format "MMMM yyyy"}},@{l="Date";e={Get-Date -Date ($_."Microsoft.VSTS.Common.ClosedDate")}} | Sort-Object Date -Descending
+    $milestones = $workItems | Where-Object { $_.'System.AreaPath' -like "*$area*" -and $_.'System.WorkItemType' -eq "Feature" } | Select-Object "System.Title",@{l="Month";e={Get-Date -Date ($_."Microsoft.VSTS.Common.ClosedDate") -Format "MMMM yyyy"}},@{l="Date";e={Get-Date -Date ($_."Microsoft.VSTS.Common.ClosedDate")}} | Sort-Object Date -Descending
 
     if($null -ne $milestones)
     {
         $sb.AppendLine("<tr><th style='border-left:1px solid #008AC8;border-right:1px solid #008AC8;' colspan='4'>Milestones</th></tr>" -f $area) | Out-Null
         
-        $months = $milestones | Select -ExpandProperty Month -Unique
+        $months = $milestones | Select-Object -ExpandProperty Month -Unique
 
         foreach($month in $months)
         {
@@ -239,7 +242,7 @@ $Document = $word.Documents.Add()
 $selection = $word.Selection
 $selection.Paste()
 
-md -Path $ReportLocation -Force | Out-Null
+mkdir -Path $ReportLocation -Force | Out-Null
 $FileLocation = $ReportLocation + "\" + $FileName
 
 #$format = [Microsoft.Office.Interop.Word.WdSaveFormat]::wdFormatPDF
